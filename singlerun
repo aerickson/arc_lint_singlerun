@@ -34,7 +34,7 @@ TEST_COMMAND_PATH=..
 PID_MAX_AGE=5
 # where to log events to
 DEBUG_FILE='/tmp/singlerun_true_debug'
-# the directory that pids directories are created
+# the directory where the PPID directories are created
 LOG_DIR='/tmp/singlerun_true_pids'
 
 
