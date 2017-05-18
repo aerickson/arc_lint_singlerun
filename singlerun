@@ -45,7 +45,7 @@ LOG_DIR='/tmp/singlerun_true_pids'
 log_to_file_and_screen () {
   update_date
   echo "*** $1"
-  echo "$date: $message" >> $DEBUG_FILE
+  echo "$date: $1" >> $DEBUG_FILE
 }
 
 update_date() {
