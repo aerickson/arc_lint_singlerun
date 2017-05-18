@@ -64,7 +64,7 @@ mkdir -p ${LOG_DIR} >/dev/null 2>&1
 
 # check if the PPID dir exists. if it does, don't run.
 if mkdir ${LOG_DIR}/$PPID >/dev/null 2>&1 ; then
-  # display staring message
+  # display starting message
   start_unix_epoch=`date +'%s'`
   log_to_file_and_screen "PPID $PPID: no previous run detected. starting..."
 
