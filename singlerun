@@ -1,0 +1,98 @@
+#!/bin/bash
+
+set -e
+
+#
+# linter for commands that aren't file-based
+# - tries it's best to only run once per `arc lint` run
+#
+
+# theory of operation:
+#   - the first instance will create a directory named "$PPID" (the parent
+#     processes' process ID) in the log directory.
+#   - proceeding instances will see that there is already a "$PPID" directory in
+#     the log directory and won't run.
+
+# known issues:
+# - the logfile output can seem like the child has decided the parent has already run.
+#   - the parent has run first, just echo'd after the child.
+#
+#   Wed May 17 21:09:34 PDT 2017: PPID 74851: test in progress or already complete.
+#   Wed May 17 21:09:34 PDT 2017: PPID 74851 hasn't been run. starting...
+#   Wed May 17 21:09:34 PDT 2017: PPID 74851: test in progress or already complete.
+
+
+##
+## USER CONFIGURATION
+##
+
+# the command to run
+TEST_COMMAND='true'
+# relative to this script, the path where the script will run the TEST_COMMAND
+TEST_COMMAND_PATH=..
+# set this at a minimum to the length of your test run
+PID_MAX_AGE=5
+# where to log events to
+DEBUG_FILE='/tmp/singlerun_true_debug'
+# the directory that pids directories are created
+LOG_DIR='/tmp/singlerun_true_pids'
+
+
+##
+## FUNCTIONS
+##
+
+log_to_file_and_screen () {
+  update_date
+  echo "*** $1"
+  echo "$date: $message" >> $DEBUG_FILE
+}
+
+update_date() {
+  date=`date '+%Y-%m-%d %H:%M:%S'`
+}
+
+
+##
+## MAIN
+##
+
+# duplication of date calls is so that we can create the PPID dir ASAP.
+# - arc seems to dispatch in parallel. need to be fast.
+
+mkdir -p ${LOG_DIR} >/dev/null 2>&1
+
+# check if the PPID dir exists. if it does, don't run.
+if mkdir ${LOG_DIR}/$PPID >/dev/null 2>&1 ; then
+  # display staring message
+  start_unix_epoch=`date +'%s'`
+  message="PPID $PPID: no previous run detected. starting..."
+  log_to_file_and_screen "$message"
+
+  # run the command
+  this_dir=`dirname $0`
+  cd $this_dir/$TEST_COMMAND_PATH
+  $TEST_COMMAND
+
+  # cleanup the logdir
+  # - if the pid dir was created more than PID_MAX_AGE minutes ago, remove it.
+  find $LOG_DIR -cmin +${PID_MAX_AGE} -type d | while read line; do
+    message="PPID $PPID: PID dir '$line' is old. removing..."
+    log_to_file_and_screen "$message"
+    # we occasionally still get a race here somehow, ignore any errors...
+    rmdir $line || true
+  done
+
+  # show completion message
+  end_unix_epoch=`date +'%s'`
+  runtime=$((end_unix_epoch-start_unix_epoch))
+  message="PPID $PPID: run complete. ${runtime} seconds elapsed."
+  log_to_file_and_screen "$message"
+  # log file delimiter to find distinct runs more easily
+  echo "--" >> $DEBUG_FILE
+else
+  message="PPID $PPID: test is in progress or already complete."
+  log_to_file_and_screen "$message"
+fi
+
+exit 0
